@@ -1,0 +1,59 @@
+The Peierls Argument: The Code Behind
+
+Last post involved some calculation with Mathematica, dealing with graphs, plotting and geometry, even some very new features of Mathematica, to my surprise.
+This post is a followup to the previous one where I display the technique behind it, how the graphics (and graphs) were generated, how they can be modified to other situations and their limitations. There is also a discussion on how to dinamically choose the colors.
+
+First I defined some colors for the graphs, <a href="https://color.adobe.com">adobe color</a> and <a href="http://colorbrewer2.org/">color brewer</a> were great help to decide which pair of colors to use
+I decided for two tones of blue
+
+	darkBlue = RGBColor[0., 0.4, .8]
+	lightBlue = RGBColor[0.486, 0.976, 0.949]
+
+Now the 1D case
+
+First I create the graphs, one is the basic complete graph and the other is the subdomain of flipped spins. I chose the size of the graphs and the interval of flipped spins, these can be easily changed in s1 and s2 and automatically affect the whole plot
+
+	s1 = Range[12];
+	s2 = Range[4, 10];
+	g1 = NearestNeighborGraph[s1, {All, 1.}, EdgeShapeFunction -> "Line", VertexStyle -> lightBlue, VertexSize -> 0.15, ImageSize -> 800];
+	g2 = NearestNeighborGraph[s2, {All, 1.}, EdgeShapeFunction -> "Line", VertexStyle -> darkBlue, VertexSize -> 0.15];
+
+	I could use both gridgraph and nearest neighbor, this is to exemplify how over complete Mathematica is, GridGraph is faster for larger graphs, and requires more to look straight
+
+	Row[{g1, PointLegend[{lightBlue, darkBlue}, {"+1", "-1"}, LegendMarkerSize -> 15]}]
+	Row[{HighlightGraph[g1, Style[g2, darkBlue]], PointLegend[{lightBlue, darkBlue}, {"+1", "-1"}, LegendMarkerSize -> 15]}]
+
+For the 2D code there was
+
+	H = 7;
+	g = GridGraph[{H, H}, VertexStyle -> lightBlue, VertexSize -> 0.15, ImageSize -> Medium];
+
+	Sometimes it is a problem how to combine two elements, some are graphs, other are lists, this combination with Row gives me just what I wanted, as legends to graphics.
+
+	Row[{Show[g], PointLegend[{lightBlue, darkBlue}, {"+1", "-1"}]}]
+
+	Then comes the subgraph, which is randomly generated, I generate some (1000) different walks on the original graph, starting from vertex 18 (arbitrarily chosen to be about in the middle of the graph)
+	% should I explain how the vertices are labeled?
+	then I create polygon p and vs is a list with all points at the boundary of the graph, naturally given by VertexList[g2], but we have to include those points inside the graph as well, and this is done with RegionMember, some conversion has to be made, because the polygons have points labeled as in a cartesian graph, whereas the GridGraph names were displayed above
+
+	This might be very slow, and the search algorithm starts by finding some uninteresting and not so winding graphs, like these (this argument could not be backed up)
+
+	g2 = RandomChoice@FindCycle[{g, 18}, {20}, 1000];
+	p = Polygon[({(# - If[Mod[#, H] == 0, H, Mod[#, H]])/H + 1, Mod[#, H] /. 0 -> H} & /@ VertexList[g2])];
+	vs = (H (#1 - 1) + #2) & @@@ DeleteCases[Tuples[Range[H], 2], x_ /; ! RegionMember[p, x]];
+
+	Then finally we can display the graph
+	
+	Row[{HighlightGraph[g, Style[Join[vs, g2], darkBlue, Thick]], PointLegend[{lightBlue, darkBlue}, {"+1", "-1"}, LegendMarkerSize -> 20]}]
+	
+This is the code for the fit of the OEIS Cycles sequence
+
+	oeisSeq = {{2, 0}, {4, 4}, {6, 12}, {8, 56}, {10, 280}, {12, 1488}, {14, 8232}, {16, 47008}, {18, 274824}, {20, 1636520}, {22, 9890584}};
+	nlm = NonlinearModelFit[oeis, a*b^x, {a, b, c}, x]
+	Show[
+	 ListLogPlot[oeis, PlotStyle -> Gray, 
+	  AxesLabel -> {"length", "# cycles"}],
+	 LogPlot[nlm[x], {x, 0, 40}, PlotStyle -> darkBlue]
+	 ]
+
+
